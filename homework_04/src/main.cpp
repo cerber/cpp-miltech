@@ -1,4 +1,8 @@
+#include <sys/types.h>
 #include <iostream>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
 
 #define ENABLE_LOG 1
 #define ENABLE_DEBUG 1
@@ -15,19 +19,19 @@
 #define DEBUG(msg)
 #endif
 
+const int ticks_per_revolution = 1024; 
+const float wheel_radius_m = 0.3f;
+const float wheelbase_m = 1.0f;
+
 struct Coord {
   float x{0.0f};  // X coordinate
   float y{0.0f};  // Y coordinate
 
   // Relod the addition operator to add two coordinates together
-  Coord operator+(const Coord& other) const {
-    return {x + other.x, y + other.y};
-  }
+  Coord operator+(const Coord& other) const { return {x + other.x, y + other.y}; }
 
   // Relod the subtraction operator to subtract one coordinate from another
-  Coord operator-(const Coord& other) const {
-    return {x - other.x, y - other.y};
-  }
+  Coord operator-(const Coord& other) const { return {x - other.x, y - other.y}; }
 
   // Relod the multiplication operator to scale a coordinate by a factor
   Coord operator*(float factor) const { return {x * factor, y * factor}; }
@@ -37,53 +41,19 @@ struct Coord {
   Coord operator/(float factor) const { return {x / factor, y / factor}; }
 
   // Calculate the distance from this coordinate to another coordinate
-  float distanceTo(const Coord& other) const {
-    return std::sqrt(std::pow(x - other.x, 2) + std::pow(y - other.y, 2));
-  }
+  float distanceTo(const Coord& other) const { return std::sqrt(std::pow(x - other.x, 2) + std::pow(y - other.y, 2)); }
 
   // Calculate the angle from this coordinate to another coordinate in radians
-  float angleTo(const Coord& other) const {
-    return std::atan2(other.y - y, other.x - x);
-  }
+  float angleTo(const Coord& other) const { return std::atan2(other.y - y, other.x - x); }
 
-  Coord moveTo(const float direction, const float distance) const {
-    return {x + cos(direction) * distance, y + sin(direction) * distance};
+  Coord moveTo(const float direction, const float distance) const
+  {
+    return {static_cast<float>(x + std::cos(direction) * distance), static_cast<float>(y + std::sin(direction) * distance)};
   }
-
-  Coord move(const float direction, const float speed, const float time) const {
-    return {x + speed * cos(direction) * time, y + speed * sin(direction) * time};
-  }
-
-  // Calculate the drop point to meet the ballistic path
-  Coord dropPoint(const Coord& other, float path) const {
-    float distance = other.distanceTo({x, y});
-    float ratio = (distance - path) / distance;
-    return {x + (other.x - x) * ratio, y + (other.y - y) * ratio};
-  }
-
-  // Normalize the coordinate to a unit vector
-  Coord normalize() const {
-    float length = std::sqrt(x * x + y * y);
-    if (length > 0) {
-      return {x / length, y / length};
-    } else {
-      return {0.0f, 0.0f};  // Return a zero vector if the length is zero to
-                            // avoid division by zero
-    }
-  }
-
-  // Rotate the coordinate by a given angle in radians
-  Coord rotate(float angle) const {
-    float cosAngle = std::cos(angle);
-    float sinAngle = std::sin(angle);
-    return {x * cosAngle - y * sinAngle, x * sinAngle + y * cosAngle};
-  }
-
-  // Calculate the dot product of this coordinate with another coordinate
-  float dot(const Coord& other) const { return x * other.x + y * other.y; }
 };
 
-std::ostream& operator<<(std::ostream& s, const Coord& c) {
+std::ostream& operator<<(std::ostream& s, const Coord& c)
+{
   std::ios_base::fmtflags old_flags = s.flags();
   std::streamsize old_prec = s.precision();
   s << std::fixed << std::setprecision(6);
@@ -93,24 +63,75 @@ std::ostream& operator<<(std::ostream& s, const Coord& c) {
   return s;
 }
 
-int main(int argc, char** argv) {
-    // The program expects exactly one argument: a path to telemetry samples.
-    if (argc != 2) {
-        std::cerr << "usage: ugv_odometry <input_path>\n";
-        return 1;
-    }
+struct Odometry {
+  long timestamp_ms;
+  long fl_ticks, fr_ticks;
+  long bl_ticks, br_ticks;
+};
 
-    // TODO: implement wheel odometry for a 4-wheel differential-drive UGV.
-    //
-    // Model parameters:
-    //   ticks_per_revolution = 1024
-    //   wheel_radius_m       = 0.3
-    //   wheelbase_m          = 1.0
-    //
-    // Input: a text file with 5 whitespace-separated values per line:
-    //         timestamp_ms fl_ticks fr_ticks bl_ticks br_ticks
-    // Output: a table on stdout, starting from the second sample:
-    //         timestamp_ms x y theta
+std::ostream& operator<<(std::ostream& s, const Odometry& o)
+{
+  std::ios_base::fmtflags old_flags = s.flags();
+  std::streamsize old_prec = s.precision();
+  s << std::fixed << std::setprecision(6);
+  s << "timestamp: " << o.timestamp_ms << ", ";
+  s << "front ticks: (" << o.fl_ticks << ", " << o.fr_ticks << ") ";
+  s << "back ticks: (" << o.bl_ticks << ", " << o.br_ticks << ")";
+  s.precision(old_prec);
+  s.flags(old_flags);
+  return s;
+}
 
-    return 0;
+std::istream& operator>>(std::istream& s, Odometry& o)
+{
+  s >> o.timestamp_ms >> o.fl_ticks >> o.fr_ticks >> o.bl_ticks >> o.br_ticks;
+  return s;
+}
+
+int loadData(char* filename, Odometry*& o)
+{
+  std::ifstream in(filename);
+  if (!in) {
+    LOG("Error opening file " << filename);
+    return -1;
+  }
+
+  u_int cnt = 0;
+  Odometry dummy;
+
+  while (in >> dummy)
+    cnt++;
+
+  in.clear();
+  in.seekg(0);
+
+  o = new Odometry[cnt];
+  for (u_int i = 0; i < cnt; i++) {
+    in >> o[i];
+  }
+  return cnt;
+}
+
+int main(int argc, char** argv)
+{
+  // The program expects exactly one argument: a path to telemetry samples.
+  if (argc != 2) {
+    std::cerr << "usage: ugv_odometry <input_path>\n";
+    return 1;
+  }
+
+  Odometry* o = nullptr;
+
+  u_int cnt = loadData(argv[1], o);
+  if (cnt < 0 || o == nullptr) {
+    LOG("Odometry data not loaded");
+    return 1;
+  }
+
+  for (u_int i = 0; i < cnt; i++) {
+    LOG(o[i]);
+  }
+
+  delete[] o;
+  return 0;
 }
