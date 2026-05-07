@@ -19,7 +19,7 @@
 #define DEBUG(msg)
 #endif
 
-const int ticks_per_revolution = 1024; 
+const int ticks_per_revolution = 1024;
 const float wheel_radius_m = 0.3f;
 const float wheelbase_m = 1.0f;
 const float distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
@@ -55,7 +55,8 @@ struct Odometry {
   long fl_ticks, fr_ticks;
   long bl_ticks, br_ticks;
 
-  Motion move(const Odometry& prev) {
+  Motion moveFrom(const Odometry& prev)
+  {
     long d_fl = fl_ticks - prev.fl_ticks;
     long d_fr = fr_ticks - prev.fr_ticks;
     long d_bl = bl_ticks - prev.bl_ticks;
@@ -64,7 +65,7 @@ struct Odometry {
     float d_l = distance_per_tick * (d_fl + d_bl) / 2;
     float d_r = distance_per_tick * (d_fr + d_br) / 2;
 
-    return {(d_l + d_r) / 2, (d_r - d_l) / wheelbase_m}; 
+    return {(d_l + d_r) / 2, (d_r - d_l) / wheelbase_m};
   }
 };
 
@@ -119,24 +120,30 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  Odometry* o = nullptr;
+  Odometry current, previous;
   Coord c{0.0f, 0.0f};
   float direction = 0.0f;
 
-  u_int cnt = loadData(argv[1], o);
-  if (cnt < 0 || o == nullptr) {
-    LOG("Odometry data not loaded");
+  std::ifstream in(argv[1]);
+  if (!in) {
+    LOG("Error opening file " << argv[1]);
     return 1;
   }
 
-  std::cout << std::fixed << std::setprecision(4);
-  for (u_int i = 1; i < cnt; i++) {
-    Motion m = o[i].move(o[i - 1]);
+  in >> previous;
+  if (in.bad()) {
+    LOG("Error reading first position");
+    return 1;
+  };
+
+  while (in >> current) {
+    std::cout << std::fixed << std::setprecision(4);
+    Motion m = current.moveFrom(previous);
     c = c.moveTo((direction + m.dtheta) / 2, m.d);
     direction += m.dtheta;
-    std::cout << o[i].timestamp_ms << " " << c.x << " " << c.y << " " << direction << std::endl;
+    std::cout << current.timestamp_ms << " " << c.x << " " << c.y << " " << direction << std::endl;
+    previous = current;
   }
 
-  delete[] o;
   return 0;
 }
