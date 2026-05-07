@@ -22,33 +22,15 @@
 const int ticks_per_revolution = 1024; 
 const float wheel_radius_m = 0.3f;
 const float wheelbase_m = 1.0f;
+const float distance_per_tick = 2 * M_PI * wheel_radius_m / ticks_per_revolution;
 
 struct Coord {
   float x{0.0f};  // X coordinate
   float y{0.0f};  // Y coordinate
 
-  // Relod the addition operator to add two coordinates together
-  Coord operator+(const Coord& other) const { return {x + other.x, y + other.y}; }
-
-  // Relod the subtraction operator to subtract one coordinate from another
-  Coord operator-(const Coord& other) const { return {x - other.x, y - other.y}; }
-
-  // Relod the multiplication operator to scale a coordinate by a factor
-  Coord operator*(float factor) const { return {x * factor, y * factor}; }
-
-  // Relod the division operator to scale a coordinate by the inverse of a
-  // factor
-  Coord operator/(float factor) const { return {x / factor, y / factor}; }
-
-  // Calculate the distance from this coordinate to another coordinate
-  float distanceTo(const Coord& other) const { return std::sqrt(std::pow(x - other.x, 2) + std::pow(y - other.y, 2)); }
-
-  // Calculate the angle from this coordinate to another coordinate in radians
-  float angleTo(const Coord& other) const { return std::atan2(other.y - y, other.x - x); }
-
   Coord moveTo(const float direction, const float distance) const
   {
-    return {static_cast<float>(x + std::cos(direction) * distance), static_cast<float>(y + std::sin(direction) * distance)};
+    return {x + std::cos(direction) * distance, y + std::sin(direction) * distance};
   }
 };
 
@@ -63,10 +45,27 @@ std::ostream& operator<<(std::ostream& s, const Coord& c)
   return s;
 }
 
+struct Motion {
+  float d;
+  float dtheta;
+};
+
 struct Odometry {
   long timestamp_ms;
   long fl_ticks, fr_ticks;
   long bl_ticks, br_ticks;
+
+  Motion move(const Odometry& prev) {
+    long d_fl = fl_ticks - prev.fl_ticks;
+    long d_fr = fr_ticks - prev.fr_ticks;
+    long d_bl = bl_ticks - prev.bl_ticks;
+    long d_br = br_ticks - prev.br_ticks;
+
+    float d_l = distance_per_tick * (d_fl + d_bl) / 2;
+    float d_r = distance_per_tick * (d_fr + d_br) / 2;
+
+    return {(d_l + d_r) / 2, (d_r - d_l) / wheelbase_m}; 
+  }
 };
 
 std::ostream& operator<<(std::ostream& s, const Odometry& o)
@@ -121,6 +120,8 @@ int main(int argc, char** argv)
   }
 
   Odometry* o = nullptr;
+  Coord c{0.0f, 0.0f};
+  float direction = 0.0f;
 
   u_int cnt = loadData(argv[1], o);
   if (cnt < 0 || o == nullptr) {
@@ -128,8 +129,12 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  for (u_int i = 0; i < cnt; i++) {
-    LOG(o[i]);
+  std::cout << std::fixed << std::setprecision(4);
+  for (u_int i = 1; i < cnt; i++) {
+    Motion m = o[i].move(o[i - 1]);
+    c = c.moveTo((direction + m.dtheta) / 2, m.d);
+    direction += m.dtheta;
+    std::cout << o[i].timestamp_ms << " " << c.x << " " << c.y << " " << direction << std::endl;
   }
 
   delete[] o;
