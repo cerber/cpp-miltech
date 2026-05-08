@@ -17,11 +17,11 @@
       }
     },
     {
-      "name": "release-debug",
-      "displayName": "ReleaseDebug",
-      "description": "Relase & Debug build",
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "description": "Relase With Debug Info build",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/reldebug",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
       }
@@ -52,19 +52,19 @@
     {
       "name": "debug",
       "displayName": "Build Debug",
-      "description": "Зібрати debug preset після configure.",
+      "description": "Зібрати Debug preset після configure.",
       "configurePreset": "debug"
     },
     {
-      "name": "release-debug",
-      "displayName": "Build ReleaseDebug",
-      "description": "Зібрати debug preset після configure.",
-      "configurePreset": "release-debug"
+      "name": "relwithdebinfo",
+      "displayName": "Build RelWithDebInfo",
+      "description": "Зібрати Release With Debug Info preset після configure.",
+      "configurePreset": "relwithdebinfo"
     },
     {
       "name": "release",
       "displayName": "Build Release",
-      "description": "Зібрати debug preset після configure.",
+      "description": "Зібрати Release preset після configure.",
       "configurePreset": "release"
     },
     {
