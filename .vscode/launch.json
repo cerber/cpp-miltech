@@ -3,7 +3,7 @@
   // Для ДЗ 5 потрібно буде додати окрему конфігурацію за цим прикладом.
   "version": "0.2.0",
   "configurations": [
-    
+
     {
       // Локальний debug demo-коду заняття 2.4. Використовує bad input,
       // щоб GDB зупинився на runtime crash.
@@ -60,7 +60,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/build/debug/homework_05/telemetry_check",
       "args": [
-        "${workspaceFolder}/homework_05/data/bad_invalid_number.txt"
+        "${workspaceFolder}/homework_05/data/good.txt"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
