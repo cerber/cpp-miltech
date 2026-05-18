@@ -55,6 +55,11 @@ struct Odometry {
   long fl_ticks, fr_ticks;
   long bl_ticks, br_ticks;
 
+  bool operator>(const Odometry& other) const
+  {
+    return timestamp_ms > other.timestamp_ms && fl_ticks > other.fl_ticks && fr_ticks > other.fr_ticks && bl_ticks > other.bl_ticks && br_ticks > other.br_ticks;
+  }
+
   Motion moveFrom(const Odometry& prev)
   {
     long d_fl = fl_ticks - prev.fl_ticks;
@@ -136,10 +141,15 @@ int main(int argc, char** argv)
     return 1;
   };
 
+  std::cout << std::fixed << std::setprecision(4);
+  
   while (in >> current) {
-    std::cout << std::fixed << std::setprecision(4);
+    if (!(current > previous)) {
+      LOG("Current odometry is not monotonically increasing compared to previous.");
+      return 1;
+    }
     Motion m = current.moveFrom(previous);
-    c = c.moveTo((direction + m.dtheta) / 2, m.d);
+    c = c.moveTo(direction + m.dtheta / 2, m.d);
     direction += m.dtheta;
     std::cout << current.timestamp_ms << " " << c.x << " " << c.y << " " << direction << std::endl;
     previous = current;
