@@ -57,7 +57,11 @@ struct Odometry {
 
   bool operator>(const Odometry& other) const
   {
-    return timestamp_ms > other.timestamp_ms && fl_ticks > other.fl_ticks && fr_ticks > other.fr_ticks && bl_ticks > other.bl_ticks && br_ticks > other.br_ticks;
+    return timestamp_ms > other.timestamp_ms && 
+      fl_ticks > other.fl_ticks && 
+      fr_ticks > other.fr_ticks && 
+      bl_ticks > other.bl_ticks &&
+      br_ticks > other.br_ticks;
   }
 
   Motion moveFrom(const Odometry& prev)
