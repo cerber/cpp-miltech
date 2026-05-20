@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <cstring>
 
 #define MAX_AMMUNITION_NAME_LENGTH 16
 
