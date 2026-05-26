@@ -40,10 +40,16 @@ int split_line(char line[], char* fields[], int max_fields) {
 
 long parse_long(const char* text) {
     char* end = nullptr;
+    if (text == nullptr) {
+        std::cerr << "error: bad or missing field\n";
+        std::exit(1);
+    }
+
     const long value = std::strtol(text, &end, 10);
 
     if (end == text) {
-        std::abort();
+        std::cerr << "error: invalid number\n";
+        std::exit(1);
     }
 
     return value;
@@ -55,10 +61,16 @@ int parse_int(const char* text) {
 
 double parse_double(const char* text) {
     char* end = nullptr;
+    if (text == nullptr) {
+        std::cerr << "error: bad or missing field\n";
+        std::exit(1);
+    }
+    
     const double value = std::strtod(text, &end);
 
     if (end == text) {
-        std::abort();
+        std::cerr << "error: invalid number\n";
+        std::exit(1);
     }
 
     return value;
@@ -67,6 +79,10 @@ double parse_double(const char* text) {
 Frame parse_frame(char line[]) {
     char* fields[EXPECTED_FIELD_COUNT] = {};
     const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
+    if (field_count < EXPECTED_FIELD_COUNT) {
+        std::cerr << "error: invalid frame, expected " << EXPECTED_FIELD_COUNT << " fields\n";
+        std::exit(1);
+    }
     (void)field_count;
 
     Frame frame{};
@@ -86,28 +102,55 @@ double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     return static_cast<double>((frame_count - 1) * 1000 / elapsed_ms);
 }
 
-int read_frames(const char* path, Frame frames[], int max_frames) {
-    std::ifstream input{path};
-    if (!input) {
-        std::cerr << "error: failed to open input file: " << path << '\n';
-        return 0;
+int read_frames(const char* path, Frame frames[], int max_frames)
+{
+  std::ifstream input{path};
+  if (!input) {
+    std::cerr << "error: failed to open input file: " << path << '\n';
+    return 0;
+  }
+
+  int frame_count = 0;
+  char line[MAX_LINE_LENGTH];
+
+  while (input.getline(line, MAX_LINE_LENGTH)) {
+    if (line[0] == '\0') {
+      continue;
     }
 
-    int frame_count = 0;
-    char line[MAX_LINE_LENGTH];
-
-    while (input.getline(line, MAX_LINE_LENGTH)) {
-        if (line[0] == '\0') {
-            continue;
-        }
-
-        if (frame_count < max_frames) {
-            frames[frame_count] = parse_frame(line);
-            ++frame_count;
-        }
+    if (frame_count < max_frames) {
+      frames[frame_count] = parse_frame(line);
+      if (frame_count > 0 && (frames[frame_count].timestamp_ms <= frames[frame_count - 1].timestamp_ms ||
+                              frames[frame_count].seq != frames[frame_count - 1].seq + 1)) {
+        std::cerr << "error: illegal data sequence at line: " << frame_count + 1 << '\n';
+        std::exit(1);
+      }
+      else if (frames[frame_count].voltage_v <= 0) {
+        std::cerr << "error: illegal voltage_v value at line: " << frame_count + 1 << '\n';
+        std::exit(1);
+      }
+      else if (frames[frame_count].temperature_c < -40.0f || frames[frame_count].temperature_c > 120.0f) {
+        std::cerr << "error: illegal temperature_c value at line: " << frame_count + 1 << '\n';
+        std::exit(1);
+      }
+      else if (frames[frame_count].gps_fix != 0 && frames[frame_count].gps_fix != 1) {
+        std::cerr << "error: illegal gps_fix value at line: " << frame_count + 1 << '\n';
+        std::exit(1);
+      }
+      else if (frames[frame_count].satellites < 0) {
+        std::cerr << "error: illegal satelites value at line: " << frame_count + 1 << '\n';
+        std::exit(1);
+      }
+      ++frame_count;
     }
+  }
 
-    return frame_count;
+  if (frame_count == 0) {
+    std::cerr << "error: input data is empty\n";
+    std::exit(1);
+  }
+
+  return frame_count;
 }
 
 Summary summarize(const Frame frames[], int frame_count) {

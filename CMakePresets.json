@@ -17,6 +17,26 @@
       }
     },
     {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "description": "Relase With Debug Info build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/relwithdebinfo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Release build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "aarch64-debug",
       "displayName": "ARM64 Debug",
       "description": "Cross-compile debug build для Raspberry Pi / Radxa / Jetson через aarch64-linux-gnu toolchain.",
@@ -32,8 +52,20 @@
     {
       "name": "debug",
       "displayName": "Build Debug",
-      "description": "Зібрати debug preset після configure.",
+      "description": "Зібрати Debug preset після configure.",
       "configurePreset": "debug"
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "Build RelWithDebInfo",
+      "description": "Зібрати Release With Debug Info preset після configure.",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "release",
+      "displayName": "Build Release",
+      "description": "Зібрати Release preset після configure.",
+      "configurePreset": "release"
     },
     {
       "name": "aarch64-debug",
